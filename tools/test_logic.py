@@ -269,8 +269,107 @@ class TestSportsLogic(unittest.TestCase):
 
 @unittest.skipIf(sleeper_logic is None, "sleeper_logic not implemented yet (Phase 5)")
 class TestSleeperLogic(unittest.TestCase):
-    def test_placeholder(self):
-        pass
+    def test_calc_fpts(self):
+        """Test fpts integer and fpts_decimal combination."""
+        settings = {"fpts": 597, "fpts_decimal": 18}
+        self.assertAlmostEqual(sleeper_logic.calc_fpts(settings), 597.18, places=2)
+
+    def test_calc_rank_with_ties(self):
+        """Test ranking rosters by wins desc, fpts desc."""
+        rosters = [
+            {"roster_id": 1, "settings": {"wins": 4, "fpts": 550, "fpts_decimal": 0}},
+            {"roster_id": 2, "settings": {"wins": 3, "fpts": 600, "fpts_decimal": 0}},
+            {"roster_id": 3, "settings": {"wins": 3, "fpts": 590, "fpts_decimal": 50}},  # tied on wins with #2, lower fpts
+            {"roster_id": 4, "settings": {"wins": 1, "fpts": 400, "fpts_decimal": 0}},
+        ]
+        # Roster 2 should be #2 (wins=3, fpts=600)
+        rank2, total = sleeper_logic.calc_rank(rosters, 2)
+        self.assertEqual(rank2, 2)
+        self.assertEqual(total, 4)
+
+        # Roster 3 should be #3 (wins=3, fpts=590.5)
+        rank3, _ = sleeper_logic.calc_rank(rosters, 3)
+        self.assertEqual(rank3, 3)
+
+    def test_calc_ytp_synthetic_schedule(self):
+        """Test YTP count with pre_game, complete, bye, and DEF."""
+        schedule = [
+            {"week": 6, "home": "KC", "away": "DET", "status": "pre_game"},
+            {"week": 6, "home": "SEA", "away": "SF", "status": "complete"},
+            {"week": 6, "home": "DAL", "away": "GB", "status": "pre_game"},
+            # Notice 'MIA' has no game this week (Bye)
+        ]
+        player_teams = {
+            "101": "KC",   # pre_game -> YTP
+            "102": "SEA",  # complete -> not YTP
+            "103": "MIA",  # bye -> not YTP
+            "104": "DAL",  # pre_game -> YTP
+        }
+        # Starters: 101(KC), 102(SEA), 103(MIA), 104(DAL), 'SEA'(DEF, complete), '0'(empty)
+        starters = ["101", "102", "103", "104", "SEA", "0"]
+        ytp = sleeper_logic.calc_ytp(starters, schedule, 6, player_teams)
+        # Expected: 101 and 104 are YTP = 2
+        self.assertEqual(ytp, 2)
+
+    def test_win_prob_identical_teams(self):
+        """Test win probability is 50% for identical teams with equal YTP."""
+        p = sleeper_logic.calc_win_prob(
+            my_points=50.0, opp_points=50.0,
+            my_ytp=5, opp_ytp=5,
+            my_fpts_total=500.0, my_games=5,
+            opp_fpts_total=500.0, opp_games=5,
+        )
+        self.assertEqual(p, 50)
+
+    def test_win_prob_decided(self):
+        """Test win probability when YTP both 0 (decided game)."""
+        p_win = sleeper_logic.calc_win_prob(
+            my_points=100.0, opp_points=95.0,
+            my_ytp=0, opp_ytp=0,
+            my_fpts_total=500.0, my_games=5,
+            opp_fpts_total=500.0, opp_games=5,
+        )
+        self.assertEqual(p_win, 100)
+
+        p_loss = sleeper_logic.calc_win_prob(
+            my_points=90.0, opp_points=95.0,
+            my_ytp=0, opp_ytp=0,
+            my_fpts_total=500.0, my_games=5,
+            opp_fpts_total=500.0, opp_games=5,
+        )
+        self.assertEqual(p_loss, 0)
+
+    def test_win_prob_opponent_empty_starters(self):
+        """Test opponent starters empty -> ytp_opp is None, defaults to 10 slots."""
+        p = sleeper_logic.calc_win_prob(
+            my_points=0.0, opp_points=0.0,
+            my_ytp=10, opp_ytp=None,
+            my_fpts_total=500.0, my_games=5,
+            opp_fpts_total=500.0, opp_games=5,
+        )
+        # Identical averages and both effective YTP 10 -> 50%
+        self.assertEqual(p, 50)
+
+    def test_screen_formatting(self):
+        """Test screen layouts A, B, and C."""
+        # Screen A: leading 98.4-87.1 -> row2 green
+        r1, r2, r3, c1, c2, c3 = sleeper_logic.format_screen_a(6, 62, 98.4, 87.1, 3, 5)
+        self.assertEqual(r1, "WK6 W:62%")
+        self.assertEqual(r2, "98.4-87.1")
+        self.assertEqual(r3, "YTP 3 v 5")
+        self.assertEqual(c2, sleeper_logic.COLOR_GREEN)
+
+        # Screen B
+        rb1, rb2, rb3, _, _, _ = sleeper_logic.format_screen_b("1-4", "Alice", 6)
+        self.assertEqual(rb1, "VS 1-4")
+        self.assertEqual(rb2, "Alice")
+        self.assertEqual(rb3, "WK6 UP NEX")
+
+        # Screen C
+        rc1, rc2, rc3, _, _, _ = sleeper_logic.format_screen_c("pinec0ne", "3-2", 597.2, 6, 12)
+        self.assertEqual(rc1, "PINEC0NE")
+        self.assertEqual(rc2, "3-2 597.2")
+        self.assertEqual(rc3, "#6 OF 12")
 
 
 if __name__ == "__main__":
