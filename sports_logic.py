@@ -248,18 +248,22 @@ def norm_nhl(schedule_data, landing_data=None, standings_data=None, now_utc=None
     my = None
     their = None
     if state in ("live", "final"):
+        my_landing = None
+        their_landing = None
         if landing_data:
-            my_raw = landing_data.get("homeTeam", {}).get("score") if home else landing_data.get("awayTeam", {}).get("score")
-            their_raw = landing_data.get("awayTeam", {}).get("score") if home else landing_data.get("homeTeam", {}).get("score")
-        else:
-            my_raw = chosen.get("homeTeam", {}).get("score") if home else chosen.get("awayTeam", {}).get("score")
-            their_raw = chosen.get("awayTeam", {}).get("score") if home else chosen.get("homeTeam", {}).get("score")
-        my = int(my_raw) if my_raw is not None else 0
-        their = int(their_raw) if their_raw is not None else 0
+            my_landing = landing_data.get("homeTeam" if home else "awayTeam", {}).get("score")
+            their_landing = landing_data.get("awayTeam" if home else "homeTeam", {}).get("score")
+        my_sched = chosen.get("homeTeam" if home else "awayTeam", {}).get("score")
+        their_sched = chosen.get("awayTeam" if home else "homeTeam", {}).get("score")
+
+        my_cand = [int(s) for s in (my_landing, my_sched) if s is not None]
+        their_cand = [int(s) for s in (their_landing, their_sched) if s is not None]
+        my = max(my_cand) if my_cand else 0
+        their = max(their_cand) if their_cand else 0
 
     status_str = ""
     if state == "live":
-        if landing_data:
+        if landing_data and landing_data.get("clock"):
             clock = landing_data.get("clock", {})
             time_rem = clock.get("timeRemaining", "")
             in_intermission = clock.get("inIntermission", False)
@@ -267,13 +271,13 @@ def norm_nhl(schedule_data, landing_data=None, standings_data=None, now_utc=None
             p_num = period_desc.get("number", 1)
             p_type = period_desc.get("periodType", "REG")
             if in_intermission:
-                status_str = "INT"
+                status_str = f"INT P{p_num}"[:10]
             elif p_type == "OT":
-                status_str = "OT"
+                status_str = f"OT {time_rem}".strip()[:10]
             elif p_type == "SO":
                 status_str = "SO"
             else:
-                status_str = f"P{p_num} {time_rem}".strip()
+                status_str = f"P{p_num} {time_rem}".strip()[:10]
         else:
             status_str = "LIVE"
     elif state == "final":

@@ -14,6 +14,7 @@
 #   Screen rotation time for games ....... ROT_GAME_SECONDS (default 5)
 #   Screen rotation time for standings ... ROT_STANDINGS_SECONDS (default 4)
 #   Score change flash duration .......... FLASH_SECONDS (default 3.0)
+#   Live game polling interval (seconds) . POLL_LIVE (default 10)
 #   NHL / MLB standings refresh interval . STANDINGS_REFRESH_SECONDS (default 1800)
 # ============================================================
 
@@ -43,30 +44,69 @@ FLASH_SECONDS = 3.0
 STANDINGS_REFRESH_SECONDS = 1800
 
 # Polling intervals (seconds)
-POLL_LIVE = 20
-POLL_PRE = 300
-POLL_OFF = 1800
+POLL_LIVE = 10   # Frequent polling during live games for responsive score/clock
+POLL_PRE = 300   # 5 minutes for upcoming games
+POLL_OFF = 1800  # 30 minutes for off-season
+
+# Team official colors for Row 1
+TEAM_COLORS = {
+    "NJD": 0xFF0000,  # Devils Red
+    "DAL": 0x0088FF,  # Cowboys Star Blue
+    "NYY": 0x00A2FF,  # Yankees Navy/Blue
+}
+COLOR_SEP = 0x888888  # Dim gray for "@" separator
 
 # Display setup
 display = init_matrix_display()
 main_group = displayio.Group()
 
-lbl_r1 = Label(terminalio.FONT, color=WHITE, x=0, y=ROW_Y[0])
+# Row 1: Split into 3 labels for multi-color matchup display (Away @ Home)
+lbl_r1_away = Label(terminalio.FONT, color=WHITE, x=0, y=ROW_Y[0])
+lbl_r1_sep = Label(terminalio.FONT, color=COLOR_SEP, x=0, y=ROW_Y[0])
+lbl_r1_home = Label(terminalio.FONT, color=WHITE, x=0, y=ROW_Y[0])
+
+# Row 2 (Score/Date) and Row 3 (Status/Clock)
 lbl_r2 = Label(terminalio.FONT, color=WHITE, x=0, y=ROW_Y[1])
 lbl_r3 = Label(terminalio.FONT, color=WHITE, x=0, y=ROW_Y[2])
 
-for lbl in (lbl_r1, lbl_r2, lbl_r3):
+for lbl in (lbl_r1_away, lbl_r1_sep, lbl_r1_home, lbl_r2, lbl_r3):
     main_group.append(lbl)
 
 display.root_group = main_group
 
 
-def set_screen_text(r1, r2, r3, c1=WHITE, c2=WHITE, c3=WHITE):
-    """Update all 3 screen labels with text and colors."""
-    lbl_r1.text = str(r1)[:10]
-    lbl_r1.color = c1
-    lbl_r1.x = center_x(lbl_r1.text)
+def set_matchup_row1(away_abbr, home_abbr):
+    """Render Row 1 as away@home with team color-coordination."""
+    away_str = str(away_abbr)[:4]
+    home_str = str(home_abbr)[:4]
+    total_len = len(away_str) + 1 + len(home_str)
+    start_x = max(0, (DISPLAY_WIDTH - total_len * 6) // 2)
 
+    lbl_r1_away.text = away_str
+    lbl_r1_away.color = TEAM_COLORS.get(away_str, WHITE)
+    lbl_r1_away.x = start_x
+
+    lbl_r1_sep.text = "@"
+    lbl_r1_sep.color = COLOR_SEP
+    lbl_r1_sep.x = start_x + len(away_str) * 6
+
+    lbl_r1_home.text = home_str
+    lbl_r1_home.color = TEAM_COLORS.get(home_str, WHITE)
+    lbl_r1_home.x = start_x + (len(away_str) + 1) * 6
+
+
+def set_single_row1(text, color=WHITE):
+    """Render Row 1 as a single centered word (e.g. DEVILS, COWBOYS)."""
+    text_str = str(text)[:10]
+    lbl_r1_away.text = text_str
+    lbl_r1_away.color = color
+    lbl_r1_away.x = center_x(text_str)
+    lbl_r1_sep.text = ""
+    lbl_r1_home.text = ""
+
+
+def set_rows_2_and_3(r2, r3, c2=WHITE, c3=WHITE):
+    """Render rows 2 and 3 centered."""
     lbl_r2.text = str(r2)[:10]
     lbl_r2.color = c2
     lbl_r2.x = center_x(lbl_r2.text)
@@ -76,7 +116,8 @@ def set_screen_text(r1, r2, r3, c1=WHITE, c2=WHITE, c3=WHITE):
     lbl_r3.x = center_x(lbl_r3.text)
 
 
-set_screen_text("SPORTS", "LOADING..", "")
+set_single_row1("SPORTS", WHITE)
+set_rows_2_and_3("LOADING..", "", WHITE, WHITE)
 
 session = connect_wifi_and_get_session()
 check_switch_button = app_switch.make_switch_button("sports_tracker.py")
@@ -226,7 +267,7 @@ def get_nyy_data(now_utc):
             _nyy_standings_cache = st
             _nyy_standings_time = now_mono
 
-    # Schedule: today to +7 days
+    # Schedule: today
     today_str = "2026-10-13"
     if now_utc is not None:
         y, m, d = time_common.civil_from_days((now_utc + time_common.eastern_offset(now_utc)) // 86400)
@@ -258,6 +299,7 @@ for t in team_order:
     if rec:
         teams_data[t] = rec
         prev_scores[t] = (rec.get("my"), rec.get("their"))
+        print(f"[{t}] Initial: {rec.get('abbr')} state={rec.get('state')} score={rec.get('my')}-{rec.get('their')} status={rec.get('status')}")
     last_poll[t] = time.monotonic()
     gc.collect()
 
@@ -272,7 +314,7 @@ while True:
     now_mono = time.monotonic()
     now_utc = time_common.utc_now()
 
-    # 1. Round-robin staggered polling
+    # 1. Staggered polling (one team per loop tick when due)
     for t in team_order:
         rec = teams_data.get(t)
         state = rec.get("state", "off") if rec else "off"
@@ -290,16 +332,16 @@ while True:
             check_switch_button()
 
             if new_rec:
-                # Check for score change to trigger flash
                 old_s = prev_scores.get(t)
                 new_s = (new_rec.get("my"), new_rec.get("their"))
                 if new_rec.get("state") == "live" and old_s != new_s and old_s is not None:
                     score_flash_until = now_mono + FLASH_SECONDS
                 prev_scores[t] = new_s
                 teams_data[t] = new_rec
+                print(f"[{t}] Poll update: {new_rec.get('abbr')} score={new_rec.get('my')}-{new_rec.get('their')} status={new_rec.get('status')}")
 
             gc.collect()
-            break  # Poll only ONE team per tick to avoid blocking
+            break  # Poll only one team per tick to keep display responsive
 
     # 2. Update screen rotation schedule
     active_teams = [teams_data[t] for t in team_order if t in teams_data]
@@ -309,6 +351,8 @@ while True:
         ROT_GAME_SECONDS,
         ROT_STANDINGS_SECONDS,
     )
+
+    # Rebuild schedule if list length or mode changes
     if not screens or len(screens) != len(new_screens):
         screens = new_screens
         current_screen_idx = 0
@@ -321,25 +365,44 @@ while True:
     if screens:
         if current_screen_idx >= len(screens):
             current_screen_idx = 0
-        screen_type, team_rec, duration = screens[current_screen_idx]
+        screen_type, snapshot_rec, duration = screens[current_screen_idx]
 
         if now_mono - screen_start_time >= duration:
             current_screen_idx = (current_screen_idx + 1) % len(screens)
             screen_start_time = now_mono
-            screen_type, team_rec, duration = screens[current_screen_idx]
+            screen_type, snapshot_rec, duration = screens[current_screen_idx]
 
-        # 4. Render current screen
+        # CRITICAL FIX: Always look up the LIVE record from teams_data so background
+        # poll updates immediately show on screen instead of freezing on the boot snapshot
+        team_abbr = snapshot_rec.get("abbr", "")
+        team_rec = teams_data.get(team_abbr, snapshot_rec)
+
+        # 4. Render current screen with Option 1 team colors
         if screen_type == "game":
             r1, r2, r3, c1, c2, c3 = sports_logic.format_game_screen(team_rec, now_utc)
-            # Handle score change flashing for live games
+
+            # Option 1: Team color-coordination on Row 1
+            if team_rec.get("state") in ("live", "final", "pre"):
+                # Road team @ Home team
+                away_team = team_rec.get("opp") if team_rec.get("home") else team_rec.get("abbr")
+                home_team = team_rec.get("abbr") if team_rec.get("home") else team_rec.get("opp")
+                set_matchup_row1(away_team, home_team)
+            else:
+                # Season over: Header in team color (DEVILS in Red, COWBOYS in Blue, YANKEES in Blue)
+                team_color = TEAM_COLORS.get(team_abbr, WHITE)
+                set_single_row1(r1, team_color)
+
+            # Flashing score row on score change
             if team_rec.get("state") == "live" and now_mono < score_flash_until:
-                # Alternate white/yellow every 250ms
                 c2 = WHITE if int(now_mono * 4) % 2 == 0 else sports_logic.COLOR_YELLOW
-            set_screen_text(r1, r2, r3, c1, c2, c3)
+
+            set_rows_2_and_3(r2, r3, c2, c3)
+
         elif screen_type == "standings":
             res = sports_logic.format_standings_screen(team_rec)
             if res:
-                set_screen_text(res[0], res[1], res[2], WHITE, WHITE, WHITE)
+                team_color = TEAM_COLORS.get(team_abbr, WHITE)
+                set_single_row1(res[0], team_color)
+                set_rows_2_and_3(res[1], res[2], WHITE, WHITE)
 
-    display.refresh(minimum_frames_per_second=0)
     time.sleep(0.1)
