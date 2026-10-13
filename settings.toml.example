@@ -1,0 +1,13 @@
+# settings.toml.example -- Template configuration file for LED Display Project.
+# Copy to settings.toml on the CIRCUITPY root and supply your credentials.
+
+CIRCUITPY_WIFI_SSID = "your-wifi-ssid"
+CIRCUITPY_WIFI_PASSWORD = "your-wifi-password"
+
+# OpenSky Network credentials
+OPENSKY_CLIENT_ID = "your-opensky-id"
+OPENSKY_CLIENT_SECRET = "your-opensky-secret"
+
+# NJ Transit Developer API credentials
+NJT_USERNAME = "your-njt-username"
+NJT_PASSWORD = "your-njt-password"

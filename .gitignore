@@ -1,0 +1,17 @@
+# Secrets
+settings.toml
+
+# System / OS metadata
+.fseventsd/
+.Trash*
+.metadata_never_index
+Thumbs.db
+Desktop.ini
+
+# Python bytecode / virtualenvs
+__pycache__/
+*.pyc
+
+# Firmware / backup
+*.uf2
+docs/backup/
