@@ -6,9 +6,7 @@
 # WHERE TO CONFIGURE THINGS
 # ============================================================
 #   Display size / color depth ......... DISPLAY_WIDTH, DISPLAY_HEIGHT, BIT_DEPTH
-#   Screen brightness (0.0-1.0) ........ BRIGHTNESS / BRIGHTNESS_DAY, BRIGHTNESS_NIGHT
-#   Night dimming schedule hours ....... NIGHT_START_HOUR, NIGHT_END_HOUR
-#   Display off schedule hours ......... OFF_START_HOUR, OFF_END_HOUR
+#   Screen brightness (0.0-1.0) ........ BRIGHTNESS -- the ONLY place to set it
 # ============================================================
 
 import board
@@ -24,15 +22,10 @@ DISPLAY_WIDTH = 64
 DISPLAY_HEIGHT = 32
 BIT_DEPTH = 4
 
-# Screen brightness, 0.0 (off) to 1.0 (max).
-# BRIGHTNESS is preserved as the daytime default.
+# Screen brightness, 0.0 (off) to 1.0 (max). This is the ONLY place brightness
+# is set -- every program calls init_matrix_display() with no arguments, so
+# there's no per-file override to accidentally shadow this value.
 BRIGHTNESS = 0.12
-BRIGHTNESS_DAY = BRIGHTNESS
-BRIGHTNESS_NIGHT = 0.04
-NIGHT_START_HOUR = 22
-NIGHT_END_HOUR = 7
-OFF_START_HOUR = 0
-OFF_END_HOUR = 6
 
 WHITE = 0xFFFFFF
 CHAR_W = 6  # pixel width of one terminalio.FONT character; used for centering text
@@ -86,25 +79,9 @@ def center_x(text, char_w=CHAR_W, display_width=DISPLAY_WIDTH):
     return max(0, (display_width - len(text) * char_w) // 2)
 
 
-def brightness_for_hour(h):
-    """Compute display brightness for a given local hour (0-23) based on configured schedule."""
-    import time_common
-    return time_common.brightness_for_hour(
-        h,
-        day=BRIGHTNESS_DAY,
-        night=BRIGHTNESS_NIGHT,
-        night_start=NIGHT_START_HOUR,
-        night_end=NIGHT_END_HOUR,
-        off_start=OFF_START_HOUR,
-        off_end=OFF_END_HOUR,
-    )
-
-
 def tick():
     """Periodic hook called from app_switch.check().
-    Runs at most once every 30 seconds:
-    - computes local hour and adjusts display.brightness
-    - checks hourly time resynchronization"""
+    Handles hourly time resynchronization."""
     global _last_tick_mono
     import time
     now_mono = time.monotonic()
@@ -112,23 +89,7 @@ def tick():
         return
     _last_tick_mono = now_mono
 
-    # 1. Update brightness based on local hour
-    try:
-        import time_common
-        local_unix = time_common.local_now()
-        if local_unix is not None:
-            local_hour = (local_unix % 86400) // 3600
-            target_brightness = brightness_for_hour(local_hour)
-        else:
-            target_brightness = BRIGHTNESS_DAY
-
-        disp = init_matrix_display()
-        if disp.brightness != target_brightness:
-            disp.brightness = target_brightness
-    except Exception as e:
-        print("Brightness tick error:", e)
-
-    # 2. Lazy hourly time resync
+    # Lazy hourly time resync
     try:
         import time_common
         if time_common.needs_resync():

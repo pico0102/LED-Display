@@ -1,12 +1,5 @@
 # time_common.py -- pure time math and SNTP/HTTP time synchronization.
 # Hardware-free pure Python: safe to import and unit test on desktop.
-#
-# ============================================================
-# WHERE TO CONFIGURE THINGS
-# ============================================================
-#   Brightness schedule defaults live here; custom overrides
-#   can be set in display_common.py.
-# ============================================================
 
 import struct
 import time
@@ -17,13 +10,6 @@ RFC_MONTHS = {
     "Jan": 1, "Feb": 2, "Mar": 3, "Apr": 4, "May": 5, "Jun": 6,
     "Jul": 7, "Aug": 8, "Sep": 9, "Oct": 10, "Nov": 11, "Dec": 12,
 }
-
-BRIGHTNESS_DAY = 0.12
-BRIGHTNESS_NIGHT = 0.04
-NIGHT_START_HOUR = 22
-NIGHT_END_HOUR = 7
-OFF_START_HOUR = 0
-OFF_END_HOUR = 6
 
 # Module state for timekeeping
 _base_unix = None
@@ -151,28 +137,6 @@ def fmt_clock(unix_utc):
     if h12 == 0:
         h12 = 12
     return f"{h12}:{minute:02d}{suffix}"
-
-
-def _in_hour_range(h, start, end):
-    if start == end:
-        return False
-    if start < end:
-        return start <= h < end
-    return h >= start or h < end
-
-
-def brightness_for_hour(h, day=BRIGHTNESS_DAY, night=BRIGHTNESS_NIGHT,
-                        night_start=NIGHT_START_HOUR, night_end=NIGHT_END_HOUR,
-                        off_start=OFF_START_HOUR, off_end=OFF_END_HOUR):
-    """Compute display brightness for a given local hour (0-23).
-    Returns day brightness if hour is None."""
-    if h is None:
-        return day
-    if _in_hour_range(h, off_start, off_end):
-        return 0.0
-    if _in_hour_range(h, night_start, night_end):
-        return night
-    return day
 
 
 def set_time(unix_secs, mono_now=None):

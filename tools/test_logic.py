@@ -123,23 +123,6 @@ class TestTimeLogic(unittest.TestCase):
         ts_am = time_common.parse_iso_utc("2026-10-13T14:04:00Z")
         self.assertEqual(time_common.fmt_clock(ts_am), "10:04A")
 
-    def test_brightness_for_hour(self):
-        """Test brightness schedule rules."""
-        # Off hours: 0..5
-        for h in range(0, 6):
-            self.assertEqual(time_common.brightness_for_hour(h), 0.0, f"Hour {h} should be off")
-
-        # Night dimming: 6 (before 7) and 22..23
-        self.assertEqual(time_common.brightness_for_hour(6), 0.04)
-        self.assertEqual(time_common.brightness_for_hour(22), 0.04)
-        self.assertEqual(time_common.brightness_for_hour(23), 0.04)
-
-        # Day hours: 7..21
-        for h in (7, 12, 17, 21):
-            self.assertEqual(time_common.brightness_for_hour(h), 0.12, f"Hour {h} should be day")
-
-        # None degraded
-        self.assertEqual(time_common.brightness_for_hour(None), 0.12)
 
 
 @unittest.skipIf(sports_logic is None, "sports_logic not implemented yet (Phase 4)")
