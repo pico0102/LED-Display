@@ -45,4 +45,13 @@ def connect_wifi_and_get_session():
 
     pool = socketpool.SocketPool(wifi.radio)
     _cached_session = adafruit_requests.Session(pool, ssl.create_default_context())
+
+    # Initial time synchronization on Wi-Fi connection
+    try:
+        import time_common
+        if time_common.utc_now() is None:
+            time_common.sync_ntp(pool)
+    except Exception as e:
+        print("Initial NTP sync error:", e)
+
     return _cached_session

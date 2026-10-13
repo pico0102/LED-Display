@@ -24,9 +24,8 @@ DISPLAY_WIDTH = 64
 DISPLAY_HEIGHT = 32
 BIT_DEPTH = 4
 
-# Screen brightness, 0.0 (off) to 1.0 (max). This is the ONLY place brightness
-# is set -- every program calls init_matrix_display() with no arguments, so
-# there's no per-file override to accidentally shadow this value.
+# Screen brightness, 0.0 (off) to 1.0 (max).
+# BRIGHTNESS is preserved as the daytime default.
 BRIGHTNESS = 0.12
 BRIGHTNESS_DAY = BRIGHTNESS
 BRIGHTNESS_NIGHT = 0.04
@@ -40,6 +39,7 @@ CHAR_W = 6  # pixel width of one terminalio.FONT character; used for centering t
 ROW_Y = (6, 16, 26)  # pixel y-positions of the 3 text rows
 
 _cached_display = None
+_last_tick_mono = None
 
 
 def init_matrix_display():
@@ -86,10 +86,59 @@ def center_x(text, char_w=CHAR_W, display_width=DISPLAY_WIDTH):
     return max(0, (display_width - len(text) * char_w) // 2)
 
 
+def brightness_for_hour(h):
+    """Compute display brightness for a given local hour (0-23) based on configured schedule."""
+    import time_common
+    return time_common.brightness_for_hour(
+        h,
+        day=BRIGHTNESS_DAY,
+        night=BRIGHTNESS_NIGHT,
+        night_start=NIGHT_START_HOUR,
+        night_end=NIGHT_END_HOUR,
+        off_start=OFF_START_HOUR,
+        off_end=OFF_END_HOUR,
+    )
+
+
 def tick():
     """Periodic hook called from app_switch.check().
-    Handles scheduled brightness changes and hourly time resynchronization."""
-    pass
+    Runs at most once every 30 seconds:
+    - computes local hour and adjusts display.brightness
+    - checks hourly time resynchronization"""
+    global _last_tick_mono
+    import time
+    now_mono = time.monotonic()
+    if _last_tick_mono is not None and (now_mono - _last_tick_mono) < 30:
+        return
+    _last_tick_mono = now_mono
+
+    # 1. Update brightness based on local hour
+    try:
+        import time_common
+        local_unix = time_common.local_now()
+        if local_unix is not None:
+            local_hour = (local_unix % 86400) // 3600
+            target_brightness = brightness_for_hour(local_hour)
+        else:
+            target_brightness = BRIGHTNESS_DAY
+
+        disp = init_matrix_display()
+        if disp.brightness != target_brightness:
+            disp.brightness = target_brightness
+    except Exception as e:
+        print("Brightness tick error:", e)
+
+    # 2. Lazy hourly time resync
+    try:
+        import time_common
+        if time_common.needs_resync():
+            import wifi
+            import socketpool
+            if wifi.radio.connected:
+                pool = socketpool.SocketPool(wifi.radio)
+                time_common.sync_ntp(pool)
+    except Exception as e:
+        print("Time resync tick error:", e)
 
 
 def show_error(text):
