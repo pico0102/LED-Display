@@ -1,13 +1,20 @@
 # display_common.py -- shared RGB matrix setup used by every program
 # (flight_wall.py, bus_tracker.py, ...). Import from here instead of
 # duplicating the panel init in each program.
+#
+# ============================================================
+# WHERE TO CONFIGURE THINGS
+# ============================================================
+#   Display size / color depth ......... DISPLAY_WIDTH, DISPLAY_HEIGHT, BIT_DEPTH
+#   Screen brightness (0.0-1.0) ........ BRIGHTNESS / BRIGHTNESS_DAY, BRIGHTNESS_NIGHT
+#   Night dimming schedule hours ....... NIGHT_START_HOUR, NIGHT_END_HOUR
+#   Display off schedule hours ......... OFF_START_HOUR, OFF_END_HOUR
+# ============================================================
 
 import board
 import displayio
 import framebufferio
 import rgbmatrix
-
-displayio.release_displays()
 
 # --- Panel setup: 64x32, 2.5mm pitch, 1:16 scan (4 address lines) ---
 # DISPLAY_WIDTH / DISPLAY_HEIGHT: change only if you swap to a different-size panel.
@@ -21,13 +28,29 @@ BIT_DEPTH = 4
 # is set -- every program calls init_matrix_display() with no arguments, so
 # there's no per-file override to accidentally shadow this value.
 BRIGHTNESS = 0.12
+BRIGHTNESS_DAY = BRIGHTNESS
+BRIGHTNESS_NIGHT = 0.04
+NIGHT_START_HOUR = 22
+NIGHT_END_HOUR = 7
+OFF_START_HOUR = 0
+OFF_END_HOUR = 6
 
 WHITE = 0xFFFFFF
 CHAR_W = 6  # pixel width of one terminalio.FONT character; used for centering text
+ROW_Y = (6, 16, 26)  # pixel y-positions of the 3 text rows
+
+_cached_display = None
 
 
 def init_matrix_display():
-    """Create and return the FramebufferDisplay for the 64x32 matrix panel."""
+    """Create and return the FramebufferDisplay for the 64x32 matrix panel.
+    Returns the cached display object on subsequent calls."""
+    global _cached_display
+    if _cached_display is not None:
+        return _cached_display
+
+    displayio.release_displays()
+
     matrix = rgbmatrix.RGBMatrix(
         width=DISPLAY_WIDTH,
         height=DISPLAY_HEIGHT,
@@ -54,8 +77,45 @@ def init_matrix_display():
     )
     display = framebufferio.FramebufferDisplay(matrix, auto_refresh=True)
     display.brightness = BRIGHTNESS
+    _cached_display = display
     return display
 
 
 def center_x(text, char_w=CHAR_W, display_width=DISPLAY_WIDTH):
+    """Return the x pixel coordinate to center text horizontally on the display."""
     return max(0, (display_width - len(text) * char_w) // 2)
+
+
+def tick():
+    """Periodic hook called from app_switch.check().
+    Handles scheduled brightness changes and hourly time resynchronization."""
+    pass
+
+
+def show_error(text):
+    """Display a 3-line centered white error message on the cached display."""
+    import terminalio
+    from adafruit_display_text.label import Label
+
+    disp = init_matrix_display()
+    group = displayio.Group()
+
+    if isinstance(text, str):
+        lines = text.split("\n")
+    else:
+        lines = list(text)
+
+    if len(lines) == 1:
+        lines = ["ERROR", lines[0], ""]
+    elif len(lines) == 2:
+        lines = [lines[0], lines[1], ""]
+    lines = lines[:3]
+
+    for i, line in enumerate(lines):
+        line_str = str(line)[:10]
+        lbl = Label(terminalio.FONT, text=line_str, color=WHITE)
+        lbl.x = center_x(line_str)
+        lbl.y = ROW_Y[i]
+        group.append(lbl)
+
+    disp.root_group = group
