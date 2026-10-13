@@ -1,0 +1,22 @@
+{
+  "id": "401872930",
+  "date": "2026-09-14T00:20Z",
+  "shortName": "DAL @ NYG",
+  "competitions": [
+    {
+      "competitors": [
+        {
+          "id": "19",
+          "homeAway": "home"
+        },
+        {
+          "id": "6",
+          "homeAway": "away"
+        }
+      ],
+      "status": {
+        "$ref": "http://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/401872930/competitions/401872930/status?lang=en&region=us"
+      }
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "games": [
+    {
+      "id": 2026020090,
+      "gameState": "LIVE",
+      "startTimeUTC": "2026-10-13T22:00:00Z",
+      "awayTeam": {
+        "id": 1,
+        "commonName": {
+          "default": "Devils"
+        },
+        "placeName": {
+          "default": "New Jersey"
+        },
+        "placeNameWithPreposition": {
+          "default": "New Jersey",
+          "fr": "du New Jersey"
+        },
+        "abbrev": "NJD",
+        "logo": "https://assets.nhle.com/logos/nhl/svg/NJD_light.svg",
+        "darkLogo": "https://assets.nhle.com/logos/nhl/svg/NJD_dark.svg",
+        "awaySplitSquad": false,
+        "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/NJD/20262027/NJD-radio.m3u8",
+        "score": 2
+      },
+      "homeTeam": {
+        "id": 17,
+        "commonName": {
+          "default": "Red Wings"
+        },
+        "placeName": {
+          "default": "Detroit"
+        },
+        "placeNameWithPreposition": {
+          "default": "Detroit",
+          "fr": "de Detroit"
+        },
+        "abbrev": "DET",
+        "logo": "https://assets.nhle.com/logos/nhl/svg/DET_light.svg",
+        "darkLogo": "https://assets.nhle.com/logos/nhl/svg/DET_dark.svg",
+        "homeSplitSquad": false,
+        "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/DET/20262027/DET-radio.m3u8",
+        "score": 2
+      },
+      "periodDescriptor": {
+        "number": 2,
+        "periodType": "REG",
+        "maxRegulationPeriods": 3
+      }
+    },
+    {
+      "id": 2026020113,
+      "gameState": "FUT",
+      "startTimeUTC": "2026-10-15T23:00:00Z",
+      "awayTeam": {
+        "id": 3,
+        "commonName": {
+          "default": "Rangers"
+        },
+        "placeName": {
+          "default": "New York"
+        },
+        "placeNameWithPreposition": {
+          "default": "New York",
+          "fr": "de New York"
+        },
+        "abbrev": "NYR",
+        "logo": "https://assets.nhle.com/logos/nhl/svg/NYR_light.svg",
+        "darkLogo": "https://assets.nhle.com/logos/nhl/svg/NYR_dark.svg",
+        "awaySplitSquad": false,
+        "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/NYR/20262027/NYR-radio.m3u8"
+      },
+      "homeTeam": {
+        "id": 1,
+        "commonName": {
+          "default": "Devils"
+        },
+        "placeName": {
+          "default": "New Jersey"
+        },
+        "placeNameWithPreposition": {
+          "default": "New Jersey",
+          "fr": "du New Jersey"
+        },
+        "abbrev": "NJD",
+        "logo": "https://assets.nhle.com/logos/nhl/svg/NJD_light.svg",
+        "darkLogo": "https://assets.nhle.com/logos/nhl/svg/NJD_dark.svg",
+        "homeSplitSquad": false,
+        "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/NJD/20262027/NJD-radio.m3u8"
+      },
+      "periodDescriptor": {
+        "number": 1,
+        "periodType": "REG",
+        "maxRegulationPeriods": 3
+      }
+    },
+    {
+      "id": 2026020121,
+      "gameState": "FUT",
+      "startTimeUTC": "2026-10-17T17:00:00Z",
+      "awayTeam": {
+        "id": 1,
+        "commonName": {
+          "default": "Devils"
+        },
+        "placeName": {
+          "default": "New Jersey"
+        },
+        "placeNameWithPreposition": {
+          "default": "New Jersey",
+          "fr": "du New Jersey"
+        },
+        "abbrev": "NJD",
+        "logo": "https://assets.nhle.com/logos/nhl/svg/NJD_light.svg",
+        "darkLogo": "https://assets.nhle.com/logos/nhl/svg/NJD_dark.svg",
+        "awaySplitSquad": false,
+        "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/NJD/20262027/NJD-radio.m3u8"
+      },
+      "homeTeam": {
+        "id": 15,
+        "commonName": {
+          "default": "Capitals"
+        },
+        "placeName": {
+          "default": "Washington"
+        },
+        "placeNameWithPreposition": {
+          "default": "Washington",
+          "fr": "de Washington"
+        },
+        "abbrev": "WSH",
+        "logo": "https://assets.nhle.com/logos/nhl/svg/WSH_secondary_light.svg",
+        "darkLogo": "https://assets.nhle.com/logos/nhl/svg/WSH_secondary_dark.svg",
+        "homeSplitSquad": false,
+        "radioLink": "https://d2igy0yla8zi0u.cloudfront.net/WSH/20262027/WSH-radio.m3u8",
+        "airlineLink": "https://www.united.com/en/us?utm_source=washcaps_schedulepage&utm_medium=web_organic&utm_campaign=2627_washcaps&utm_content=united",
+        "airlineDesc": "Fly with United Arlines"
+      },
+      "periodDescriptor": {
+        "number": 1,
+        "periodType": "REG",
+        "maxRegulationPeriods": 3
+      }
+    }
+  ]
+}

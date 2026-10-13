@@ -127,8 +127,144 @@ class TestTimeLogic(unittest.TestCase):
 
 @unittest.skipIf(sports_logic is None, "sports_logic not implemented yet (Phase 4)")
 class TestSportsLogic(unittest.TestCase):
-    def test_placeholder(self):
-        pass
+    def test_rank_formatting(self):
+        """Test #2 NFCE style rank string formatting."""
+        self.assertEqual(sports_logic.fmt_rank(2, "NFC East"), "#2 NFCE")
+        self.assertEqual(sports_logic.fmt_rank(7, "Metropolitan"), "#7 METRO")
+        self.assertEqual(sports_logic.fmt_rank(2, "American League East"), "#2 ALE")
+        self.assertIsNone(sports_logic.fmt_rank(None, "Metropolitan"))
+
+    def test_norm_nfl_states(self):
+        """Test norm_nfl for pre, in, post, and season over (played >= 17)."""
+        # Pre-game: Week 6
+        rec_data = {"summary": "2-3"}
+        ev_data = {
+            "date": "2026-10-19T00:20Z",
+            "shortName": "DAL @ GB",
+            "competitions": [{"competitors": [{"id": "6", "homeAway": "away"}, {"id": "9", "homeAway": "home"}]}],
+        }
+        st_data = {"type": {"state": "pre"}}
+        nfl_pre = sports_logic.norm_nfl(rec_data, ev_data, st_data, rank=2)
+        self.assertEqual(nfl_pre["state"], "pre")
+        self.assertEqual(nfl_pre["abbr"], "DAL")
+        self.assertEqual(nfl_pre["opp"], "GB")
+        self.assertFalse(nfl_pre["home"])
+        self.assertIsNone(nfl_pre["my"])
+        self.assertEqual(nfl_pre["record"], "2-3")
+        self.assertEqual(nfl_pre["rank"], "#2 NFCE")
+
+        # In-game (Live)
+        st_data_live = {"type": {"state": "in", "shortDetail": "Q3 4:12"}, "period": 3, "displayClock": "4:12"}
+        nfl_live = sports_logic.norm_nfl(rec_data, ev_data, st_data_live, my_score_data=17, opp_score_data=14)
+        self.assertEqual(nfl_live["state"], "live")
+        self.assertEqual(nfl_live["my"], 17)
+        self.assertEqual(nfl_live["their"], 14)
+        self.assertEqual(nfl_live["status"], "Q3 4:12")
+
+        # Post-game (Final)
+        st_data_post = {"type": {"state": "post"}, "period": 4}
+        nfl_post = sports_logic.norm_nfl(rec_data, ev_data, st_data_post, my_score_data=20, opp_score_data=23)
+        self.assertEqual(nfl_post["state"], "final")
+        self.assertEqual(nfl_post["my"], 20)
+        self.assertEqual(nfl_post["their"], 23)
+        self.assertEqual(nfl_post["status"], "FINAL")
+
+        # Season over: played >= 17
+        rec_data_off = {"summary": "10-7"}
+        nfl_off = sports_logic.norm_nfl(rec_data_off, ev_data, st_data)
+        self.assertEqual(nfl_off["state"], "off")
+
+    def test_norm_nhl_game_choice(self):
+        """Test NHL game choice: live beats future; recent final within 3h; none -> off."""
+        sched_live_and_fut = {
+            "games": [
+                {"id": 1, "gameState": "LIVE", "startTimeUTC": "2026-10-13T22:00:00Z", "awayTeam": {"abbrev": "NJD", "score": 2}, "homeTeam": {"abbrev": "DET", "score": 1}},
+                {"id": 2, "gameState": "FUT", "startTimeUTC": "2026-10-15T23:00:00Z", "awayTeam": {"abbrev": "NJD"}, "homeTeam": {"abbrev": "TOR"}},
+            ]
+        }
+        nhl_res = sports_logic.norm_nhl(sched_live_and_fut)
+        self.assertEqual(nhl_res["state"], "live")
+        self.assertEqual(nhl_res["opp"], "DET")
+        self.assertEqual(nhl_res["my"], 2)
+        self.assertEqual(nhl_res["their"], 1)
+
+        # Fut beats none
+        sched_fut_only = {
+            "games": [
+                {"id": 2, "gameState": "FUT", "startTimeUTC": "2026-10-15T23:00:00Z", "awayTeam": {"abbrev": "TOR"}, "homeTeam": {"abbrev": "NJD"}},
+            ]
+        }
+        nhl_fut = sports_logic.norm_nhl(sched_fut_only)
+        self.assertEqual(nhl_fut["state"], "pre")
+        self.assertEqual(nhl_fut["opp"], "TOR")
+        self.assertTrue(nhl_fut["home"])
+
+        # Empty schedule -> off
+        nhl_off = sports_logic.norm_nhl({"games": []})
+        self.assertEqual(nhl_off["state"], "off")
+
+    def test_norm_mlb_inning_text(self):
+        """Test MLB inning text and status strings."""
+        sched_live = {
+            "dates": [{
+                "games": [{
+                    "status": {"abstractGameState": "Live"},
+                    "teams": {"home": {"team": {"id": 147, "abbreviation": "NYY"}, "score": 4}, "away": {"team": {"id": 111, "abbreviation": "BOS"}, "score": 2}},
+                    "linescore": {"currentInning": 5, "inningHalf": "Top"},
+                }]
+            }]
+        }
+        mlb_live = sports_logic.norm_mlb(sched_live)
+        self.assertEqual(mlb_live["state"], "live")
+        self.assertEqual(mlb_live["status"], "T5")
+        self.assertEqual(mlb_live["my"], 4)
+        self.assertEqual(mlb_live["their"], 2)
+
+        # Final extra inning
+        sched_f10 = {
+            "dates": [{
+                "games": [{
+                    "status": {"abstractGameState": "Final"},
+                    "teams": {"home": {"team": {"id": 147, "abbreviation": "NYY"}, "score": 5}, "away": {"team": {"id": 111, "abbreviation": "BOS"}, "score": 4}},
+                    "linescore": {"currentInning": 10},
+                }]
+            }]
+        }
+        mlb_f10 = sports_logic.norm_mlb(sched_f10)
+        self.assertEqual(mlb_f10["state"], "final")
+        self.assertEqual(mlb_f10["status"], "F/10")
+
+        # Empty schedule -> off
+        mlb_off = sports_logic.norm_mlb({"dates": []})
+        self.assertEqual(mlb_off["state"], "off")
+
+    def test_rotation_selector(self):
+        """Test rotation selector when live teams exist vs none live."""
+        t_live = {"state": "live", "abbr": "NJD", "rank": "#7 METRO"}
+        t_pre = {"state": "pre", "abbr": "DAL", "rank": "#2 NFCE"}
+        t_off = {"state": "off", "abbr": "NYY", "rank": "#2 ALE"}
+
+        # When one team is live: only rotate among live teams (no standings)
+        live_only, screens = sports_logic.choose_display_screen([t_live, t_pre, t_off])
+        self.assertTrue(live_only)
+        self.assertEqual(len(screens), 1)
+        self.assertEqual(screens[0][0], "game")
+        self.assertEqual(screens[0][1]["abbr"], "NJD")
+
+        # When no team is live: rotate through all 3 teams; include standings if available
+        live_only_none, screens_all = sports_logic.choose_display_screen([t_pre, t_off])
+        self.assertFalse(live_only_none)
+        # t_pre has game (5s) and standings (4s); t_off has game (5s) only
+        self.assertEqual(len(screens_all), 3)
+        self.assertEqual(screens_all[0], ("game", t_pre, 5))
+        self.assertEqual(screens_all[1], ("standings", t_pre, 4))
+        self.assertEqual(screens_all[2], ("game", t_off, 5))
+
+    def test_score_colors(self):
+        """Test score color selection: green leading, red trailing, yellow tied."""
+        self.assertEqual(sports_logic.score_color(17, 14), sports_logic.COLOR_GREEN)
+        self.assertEqual(sports_logic.score_color(10, 14), sports_logic.COLOR_RED)
+        self.assertEqual(sports_logic.score_color(14, 14), sports_logic.COLOR_YELLOW)
 
 
 @unittest.skipIf(sleeper_logic is None, "sleeper_logic not implemented yet (Phase 5)")
