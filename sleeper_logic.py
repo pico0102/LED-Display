@@ -15,8 +15,8 @@ def calc_fpts(settings):
     """Combine fpts integer and fpts_decimal into float (e.g. 597 + 18/100 -> 597.18)."""
     if not settings:
         return 0.0
-    fpts = settings.get("fpts", 0)
-    dec = settings.get("fpts_decimal", 0)
+    fpts = settings.get("fpts") or 0
+    dec = settings.get("fpts_decimal") or 0
     return float(fpts) + float(dec) / 100.0
 
 
@@ -27,8 +27,8 @@ def calc_rank(rosters, target_roster_id):
         return None, 0
 
     def sort_key(r):
-        st = r.get("settings", {})
-        wins = st.get("wins", 0)
+        st = r.get("settings") or {}
+        wins = st.get("wins") or 0
         fpts = calc_fpts(st)
         return (wins, fpts)
 
@@ -175,5 +175,6 @@ def format_screen_c(username, my_record, my_fpts, rank, total_teams):
     row3: #6 OF 12"""
     r1 = str(username)[:10].upper()
     r2 = f"{my_record} {my_fpts:.1f}"[:10]
-    r3 = f"#{rank} OF {total_teams}"[:10]
+    rank_str = f"#{rank}" if rank is not None else "#?"
+    r3 = f"{rank_str} OF {total_teams}"[:10]
     return r1, r2, r3, COLOR_WHITE, COLOR_WHITE, COLOR_WHITE

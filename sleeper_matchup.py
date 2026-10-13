@@ -216,9 +216,9 @@ while True:
         continue
 
     my_roster_id = my_roster.get("roster_id")
-    my_st = my_roster.get("settings", {})
-    my_record = f"{my_st.get('wins', 0)}-{my_st.get('losses', 0)}"
-    my_games = my_st.get("wins", 0) + my_st.get("losses", 0) + my_st.get("ties", 0)
+    my_st = my_roster.get("settings") or {}
+    my_record = f"{my_st.get('wins') or 0}-{my_st.get('losses') or 0}"
+    my_games = (my_st.get("wins") or 0) + (my_st.get("losses") or 0) + (my_st.get("ties") or 0)
     my_fpts_total = sleeper_logic.calc_fpts(my_st)
     rank, total_teams = sleeper_logic.calc_rank(_rosters_cache, my_roster_id)
 
@@ -237,8 +237,8 @@ while True:
                     opp_match = m
                     break
 
-    my_pts = float(my_match.get("points", 0.0)) if my_match else 0.0
-    opp_pts = float(opp_match.get("points", 0.0)) if opp_match else 0.0
+    my_pts = float(my_match.get("points") or 0.0) if my_match else 0.0
+    opp_pts = float(opp_match.get("points") or 0.0) if opp_match else 0.0
 
     # Opponent roster details
     opp_roster = None
@@ -251,17 +251,17 @@ while True:
                 opp_roster = r
                 break
         if opp_roster:
-            ost = opp_roster.get("settings", {})
-            opp_record = f"{ost.get('wins', 0)}-{ost.get('losses', 0)}"
-            opp_games = ost.get("wins", 0) + ost.get("losses", 0) + ost.get("ties", 0)
+            ost = opp_roster.get("settings") or {}
+            opp_record = f"{ost.get('wins') or 0}-{ost.get('losses') or 0}"
+            opp_games = (ost.get("wins") or 0) + (ost.get("losses") or 0) + (ost.get("ties") or 0)
             opp_fpts_total = sleeper_logic.calc_fpts(ost)
 
-    opp_user = _users_cache.get(opp_roster.get("owner_id")) if opp_roster else None
-    opp_name = opp_user.get("display_name", "OPPONENT") if opp_user else "OPPONENT"
+    opp_user = _users_cache.get(opp_roster.get("owner_id")) if (opp_roster and opp_roster.get("owner_id")) else None
+    opp_name = (opp_user.get("display_name") or "OPPONENT") if opp_user else "OPPONENT"
 
     # Resolve starter player teams (at most 2 uncached players per tick to keep display responsive)
-    my_starters = my_match.get("starters", []) if my_match else []
-    opp_starters = opp_match.get("starters", []) if opp_match else []
+    my_starters = (my_match.get("starters") or []) if my_match else []
+    opp_starters = (opp_match.get("starters") or []) if opp_match else []
     uncached_count = 0
     for pid in (my_starters + opp_starters):
         if pid and pid != "0" and str(pid) not in _player_teams_cache:

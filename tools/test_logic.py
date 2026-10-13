@@ -371,6 +371,20 @@ class TestSleeperLogic(unittest.TestCase):
         self.assertEqual(rc2, "3-2 597.2")
         self.assertEqual(rc3, "#6 OF 12")
 
+    def test_null_safety(self):
+        """Test robust handling of None/null fields from Sleeper API."""
+        # Null settings in fpts
+        self.assertEqual(sleeper_logic.calc_fpts({"fpts": None, "fpts_decimal": None}), 0.0)
+        self.assertEqual(sleeper_logic.calc_fpts(None), 0.0)
+
+        # Null rank in Screen C
+        rc1, rc2, rc3, _, _, _ = sleeper_logic.format_screen_c("pinec0ne", "3-2", 597.2, None, 12)
+        self.assertEqual(rc3, "#? OF 12")
+
+        # Empty/None starters
+        self.assertIsNone(sleeper_logic.calc_ytp(None, [], 6, {}))
+        self.assertIsNone(sleeper_logic.calc_ytp([], [], 6, {}))
+
 
 if __name__ == "__main__":
     unittest.main()
