@@ -11,3 +11,11 @@ OPENSKY_CLIENT_SECRET = "your-opensky-secret"
 # NJ Transit Developer API credentials
 NJT_USERNAME = "your-njt-username"
 NJT_PASSWORD = "your-njt-password"
+
+# Google Home Voice Control (Adafruit IO MQTT + Local LAN Webhook)
+AIO_USERNAME = "your-adafruit-io-username"
+AIO_KEY = "your-adafruit-io-key"
+AIO_FEED = "led-display"
+VOICE_PORT = 8080
+VOICE_TOKEN = ""
+

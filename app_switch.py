@@ -19,9 +19,26 @@ import board
 import keypad
 import time
 import display_common
+import voice_control
 
 # Programs active in rotation. Add each file only when its implementation exists.
-PROGRAMS = ("flight_wall.py", "bus_tracker.py", "sports_tracker.py", "sleeper_matchup.py", "idle_clock.py")
+PROGRAMS = (
+    "flight_wall.py",      # Index 0
+    "bus_tracker.py",      # Index 1
+    "sports_tracker.py",   # Index 2
+    "sleeper_matchup.py",  # Index 3
+    "idle_clock.py",       # Index 4
+)
+
+# Program labels for the 3-row voice confirmation splash screen (strictly <= 10 chars)
+PROGRAM_LABELS = (
+    "-> FLIGHTS",  # Index 0 (10 chars)
+    "-> BUS",      # Index 1 (6 chars)
+    "-> SPORTS",   # Index 2 (9 chars)
+    "-> FANTASY",  # Index 3 (10 chars)
+    "-> CLOCK",    # Index 4 (8 chars)
+)
+
 STATE_FILE = "/program_state.txt"
 
 # Auto-rotate timer: seconds before auto-cycling to next app. 0 = disabled.
@@ -40,11 +57,14 @@ _event = keypad.Event()
 
 
 class SwitchRequested(BaseException):
-    """Raised when user requests switching apps. Subclasses BaseException so
-    stray 'except Exception:' blocks within apps do not catch or swallow it."""
-    def __init__(self, direction):
+    """Raised when user requests switching apps via button or voice.
+    Subclasses BaseException so stray 'except Exception:' blocks within apps
+    do not catch or swallow it."""
+    def __init__(self, direction=0, target_index=None, source="button"):
         super().__init__(direction)
         self.direction = direction
+        self.target_index = target_index
+        self.source = source
 
 
 def _read_index():
@@ -87,6 +107,7 @@ def make_switch_button(current_program=None, pin=None):
     while _keys.events.get_into(_event):
         pass
 
+    current_idx = PROGRAMS.index(current_program) if current_program in PROGRAMS else _read_index()
     start_time = time.monotonic()
 
     def check():
@@ -101,10 +122,26 @@ def make_switch_button(current_program=None, pin=None):
                 direction = 1 if _event.key_number == 0 else -1
                 raise SwitchRequested(direction)
 
-        # 3. Optional auto-rotation (Phase 8)
+        # 3. Voice control check (non-blocking LAN + MQTT)
+        cmd = voice_control.poll(current_idx)
+        if cmd is not None:
+            start_time = time.monotonic()
+            act = cmd.get("action")
+            if act == "hold":
+                global hold_rotation
+                hold_rotation = bool(cmd.get("hold"))
+            elif act == "step":
+                raise SwitchRequested(direction=cmd.get("direction", 1), source="voice")
+            elif act == "target":
+                t_idx = cmd.get("target_index")
+                if t_idx is not None and t_idx != current_idx:
+                    raise SwitchRequested(direction=0, target_index=t_idx, source="voice")
+
+        # 4. Optional auto-rotation (Phase 8)
         if AUTO_ROTATE_SECONDS > 0 and not hold_rotation:
             if time.monotonic() - start_time >= AUTO_ROTATE_SECONDS:
                 start_time = time.monotonic()
                 raise SwitchRequested(1)
 
     return check
+

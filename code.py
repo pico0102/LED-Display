@@ -19,8 +19,15 @@ while True:
     try:
         __import__(mod)                    # runs the app's top-level loop until SwitchRequested
     except app_switch.SwitchRequested as e:
-        idx = app_switch.next_index(idx, e.direction)
+        if getattr(e, "target_index", None) is not None:
+            idx = e.target_index % len(app_switch.PROGRAMS)
+        else:
+            idx = app_switch.next_index(idx, e.direction)
         app_switch._write_index(idx)
+        if getattr(e, "source", "button") == "voice":
+            toast_lbl = app_switch.PROGRAM_LABELS[idx]
+            display_common.show_voice_toast(toast_lbl)
+            time.sleep(0.5)
     except Exception as e:                  # app crashed (wifi down at boot, bad JSON...)
         print("App crashed:", name, repr(e))
         display_common.show_error("ERR " + mod[:6])   # 3-line message

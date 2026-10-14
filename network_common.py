@@ -15,12 +15,23 @@ import socketpool
 import adafruit_requests
 
 _cached_session = None
+_cached_pool = None
+
+
+def get_socket_pool():
+    """Return cached SocketPool if Wi-Fi is connected, else None."""
+    global _cached_pool
+    if not wifi.radio.connected:
+        return None
+    if _cached_pool is None:
+        _cached_pool = socketpool.SocketPool(wifi.radio)
+    return _cached_pool
 
 
 def connect_wifi_and_get_session():
     """Connect to Wi-Fi (creds from settings.toml) and return a requests Session.
     Caches the session once connected; reconnects with up to 3 retries if disconnected."""
-    global _cached_session
+    global _cached_session, _cached_pool
 
     if wifi.radio.connected and _cached_session is not None:
         return _cached_session
@@ -44,6 +55,7 @@ def connect_wifi_and_get_session():
         raise last_err
 
     pool = socketpool.SocketPool(wifi.radio)
+    _cached_pool = pool
     _cached_session = adafruit_requests.Session(pool, ssl.create_default_context())
 
     # Initial time synchronization on Wi-Fi connection

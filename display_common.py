@@ -93,10 +93,9 @@ def tick():
     try:
         import time_common
         if time_common.needs_resync():
-            import wifi
-            import socketpool
-            if wifi.radio.connected:
-                pool = socketpool.SocketPool(wifi.radio)
+            import network_common
+            pool = network_common.get_socket_pool()
+            if pool:
                 time_common.sync_ntp(pool)
     except Exception as e:
         print("Time resync tick error:", e)
@@ -129,3 +128,27 @@ def show_error(text):
         group.append(lbl)
 
     disp.root_group = group
+
+
+def show_voice_toast(target_label):
+    """Display a 3-line centered voice command confirmation splash screen."""
+    import terminalio
+    from adafruit_display_text.label import Label
+
+    disp = init_matrix_display()
+    group = displayio.Group()
+
+    rows = (
+        ("VOICE CMD", 0x00FFFF),
+        ("SWITCH TO", WHITE),
+        (str(target_label)[:10], 0x00FF00),
+    )
+    for i, (line_str, color) in enumerate(rows):
+        lbl = Label(terminalio.FONT, text=line_str, color=color)
+        lbl.x = center_x(line_str)
+        lbl.y = ROW_Y[i]
+        group.append(lbl)
+
+    disp.root_group = group
+    disp.refresh(minimum_frames_per_second=0)
+

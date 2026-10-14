@@ -7,7 +7,9 @@ Board-only modules (board, displayio, etc.) must NEVER be imported by these modu
 
 import os
 import sys
+import struct
 import unittest
+
 
 # Ensure repo root is on sys.path
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -39,6 +41,12 @@ try:
     import weather_logic
 except ImportError:
     weather_logic = None
+
+try:
+    import voice_logic
+except ImportError:
+    voice_logic = None
+
 
 
 class TestPureModulesImport(unittest.TestCase):
@@ -486,5 +494,124 @@ class TestWeatherLogic(unittest.TestCase):
         self.assertEqual(weather_logic.format_weather(None, 0), "NO WEATHER")
 
 
+@unittest.skipIf(voice_logic is None, "voice_logic not implemented yet")
+class TestVoiceLogic(unittest.TestCase):
+    def test_screen_target_keywords(self):
+        """Test keyword recognition for each of the 5 canonical screens."""
+        targets = [
+            (0, ["flights", "plane", "sky", "aircraft", "0"]),
+            (1, ["bus", "buses", "transit", "njt", "commute", "1"]),
+            (2, ["sports", "score", "game", "devils", "cowboys", "yankees", "nhl", "nfl", "mlb", "2"]),
+            (3, ["fantasy", "sleeper", "matchup", "football", "3"]),
+            (4, ["clock", "time", "weather", "idle", "home", "4"]),
+        ]
+        for expected_idx, words in targets:
+            for w in words:
+                res = voice_logic.resolve_action(w)
+                self.assertIsNotNone(res, f"Failed to match keyword '{w}'")
+                self.assertEqual(res["action"], "target", f"Action not target for '{w}'")
+                self.assertEqual(res["target_index"], expected_idx, f"Wrong index for '{w}'")
+
+    def test_natural_language_phrases(self):
+        """Test natural language phrases containing filler words and punctuation."""
+        cases = [
+            ("please show the devils game", 2),
+            ("switch to bus tracker!", 1),
+            ("Can you check flights?", 0),
+            ("show my sleeper matchup.", 3),
+            ("what is the time and weather?", 4),
+        ]
+        for phrase, expected_idx in cases:
+            res = voice_logic.resolve_action(phrase)
+            self.assertIsNotNone(res, f"Failed for phrase '{phrase}'")
+            self.assertEqual(res["action"], "target")
+            self.assertEqual(res["target_index"], expected_idx)
+
+    def test_step_and_hold_commands(self):
+        """Test next/prev rotation steps and hold lock/resume actions."""
+        # Next / Prev
+        for kw in ["next", "up", "forward", "cycle"]:
+            res = voice_logic.resolve_action(kw)
+            self.assertEqual(res, {"action": "step", "target_index": None, "direction": 1, "hold": None})
+
+        for kw in ["prev", "previous", "down", "back"]:
+            res = voice_logic.resolve_action(kw)
+            self.assertEqual(res, {"action": "step", "target_index": None, "direction": -1, "hold": None})
+
+        # Hold
+        for kw in ["hold", "lock", "pause", "stay"]:
+            res = voice_logic.resolve_action(kw)
+            self.assertEqual(res, {"action": "hold", "target_index": None, "direction": 0, "hold": True})
+
+        for kw in ["resume", "unlock", "rotate"]:
+            res = voice_logic.resolve_action(kw)
+            self.assertEqual(res, {"action": "hold", "target_index": None, "direction": 0, "hold": False})
+
+    def test_parse_command_http(self):
+        """Test HTTP request line parsing with tokens."""
+        req_valid = "GET /switch?app=sports&token=secret123 HTTP/1.1\r\nHost: 192.168.1.50\r\n\r\n"
+        res = voice_logic.parse_command(req_valid, expected_token="secret123")
+        self.assertIsNotNone(res)
+        self.assertEqual(res["action"], "target")
+        self.assertEqual(res["target_index"], 2)
+
+        # Invalid token rejected
+        res_bad = voice_logic.parse_command(req_valid, expected_token="wrong_token")
+        self.assertIsNone(res_bad)
+
+        # No token expected
+        req_no_token = "GET /switch?app=bus HTTP/1.1"
+        res_no_tok = voice_logic.parse_command(req_no_token, expected_token="")
+        self.assertIsNotNone(res_no_tok)
+        self.assertEqual(res_no_tok["target_index"], 1)
+
+    def test_parse_command_formats(self):
+        """Test JSON, CMD:, and raw text parsing."""
+        # JSON
+        res_json = voice_logic.parse_command('{"app": "fantasy"}')
+        self.assertEqual(res_json["target_index"], 3)
+
+        # Adafruit IO JSON
+        res_aio = voice_logic.parse_command('{"value": "clock"}')
+        self.assertEqual(res_aio["target_index"], 4)
+
+        # CMD format
+        res_cmd = voice_logic.parse_command("CMD:flights:tok123", expected_token="tok123")
+        self.assertEqual(res_cmd["target_index"], 0)
+        self.assertIsNone(voice_logic.parse_command("CMD:flights:tok123", expected_token="tok999"))
+
+        # Raw text
+        res_raw = voice_logic.parse_command("sports")
+        self.assertEqual(res_raw["target_index"], 2)
+
+    def test_mqtt_packets(self):
+        """Test MQTT packet generation and publish parsing."""
+        conn = voice_logic.build_mqtt_connect("matrix-s3", "testuser", "testkey", keepalive=50)
+        self.assertEqual(conn[0], 0x10)
+        self.assertIn(b"MQTT", conn)
+        self.assertIn(b"matrix-s3", conn)
+        self.assertIn(b"testuser", conn)
+        self.assertIn(b"testkey", conn)
+
+        sub = voice_logic.build_mqtt_subscribe("testuser/feeds/led-display", packet_id=1)
+        self.assertEqual(sub[0], 0x82)
+        self.assertIn(b"testuser/feeds/led-display", sub)
+
+        ping = voice_logic.build_mqtt_pingreq()
+        self.assertEqual(ping, b"\xc0\x00")
+
+        # Synthetic PUBLISH packet QoS 0
+        topic = b"test/feed"
+        payload = b"sports"
+        var_hdr = struct.pack(">H", len(topic)) + topic
+        pkt = b"\x30" + bytes([len(var_hdr) + len(payload)]) + var_hdr + payload
+        parsed = voice_logic.parse_mqtt_publish(pkt, len(pkt))
+        self.assertEqual(parsed, "sports")
+
+        # Non-publish packet returns None
+        self.assertIsNone(voice_logic.parse_mqtt_publish(b"\x20\x02\x00\x00", 4))
+
+
 if __name__ == "__main__":
     unittest.main()
+
