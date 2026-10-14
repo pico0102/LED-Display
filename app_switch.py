@@ -20,7 +20,7 @@ import time
 import display_common
 
 # Programs active in rotation. Add each file only when its implementation exists.
-PROGRAMS = ("flight_wall.py", "bus_tracker.py", "sports_tracker.py", "sleeper_matchup.py")
+PROGRAMS = ("flight_wall.py", "bus_tracker.py", "sports_tracker.py", "sleeper_matchup.py", "idle_clock.py")
 STATE_FILE = "/program_state.txt"
 
 # Auto-rotate timer: seconds before auto-cycling to next app. 0 = disabled.

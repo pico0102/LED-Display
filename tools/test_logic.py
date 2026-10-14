@@ -35,6 +35,11 @@ try:
 except ImportError:
     bus_logic = None
 
+try:
+    import weather_logic
+except ImportError:
+    weather_logic = None
+
 
 class TestPureModulesImport(unittest.TestCase):
     def test_framework_ready(self):
@@ -127,6 +132,11 @@ class TestTimeLogic(unittest.TestCase):
         # Morning test: 14:04Z -> 10:04A EDT
         ts_am = time_common.parse_iso_utc("2026-10-13T14:04:00Z")
         self.assertEqual(time_common.fmt_clock(ts_am), "10:04A")
+
+    def test_fmt_date(self):
+        """Test fmt_date for 2026-10-13T22:04:00Z -> 'TUE 10/13'."""
+        ts = time_common.parse_iso_utc("2026-10-13T22:04:00Z")
+        self.assertEqual(time_common.fmt_date(ts), "TUE 10/13")
 
 
 
@@ -450,6 +460,30 @@ class TestBusLogic(unittest.TestCase):
         self.assertTrue(leave_now)  # 5 mins is within 4..5
         # Ticker should contain 87 (2 mins) and 84 (12 mins)
         self.assertEqual([t.get("public_route") for t in ticker], ["87", "84"])
+
+
+@unittest.skipIf(weather_logic is None, "weather_logic not implemented yet (Phase 7)")
+class TestWeatherLogic(unittest.TestCase):
+    def test_wmo_to_condition(self):
+        """Test WMO weather code mapping to <=6 char text."""
+        self.assertEqual(weather_logic.wmo_to_condition(0), "CLEAR")
+        self.assertEqual(weather_logic.wmo_to_condition(1), "CLEAR")
+        self.assertEqual(weather_logic.wmo_to_condition(2), "P.CLDY")
+        self.assertEqual(weather_logic.wmo_to_condition(3), "CLOUDY")
+        self.assertEqual(weather_logic.wmo_to_condition(45), "FOG")
+        self.assertEqual(weather_logic.wmo_to_condition(51), "DRIZZL")
+        self.assertEqual(weather_logic.wmo_to_condition(61), "RAIN")
+        self.assertEqual(weather_logic.wmo_to_condition(71), "SNOW")
+        self.assertEqual(weather_logic.wmo_to_condition(95), "STORM")
+        self.assertEqual(weather_logic.wmo_to_condition(None), "CLEAR")
+
+    def test_format_weather(self):
+        """Test formatting of weather line to <=10 chars."""
+        self.assertEqual(weather_logic.format_weather(66.9, 0), "67F CLEAR")
+        self.assertEqual(weather_logic.format_weather(72.0, 2), "72F P.CLDY")
+        self.assertEqual(weather_logic.format_weather(104.2, 0), "104F CLEAR")
+        self.assertEqual(weather_logic.format_weather(-4.6, 71), "-5F SNOW")
+        self.assertEqual(weather_logic.format_weather(None, 0), "NO WEATHER")
 
 
 if __name__ == "__main__":

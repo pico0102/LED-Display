@@ -139,6 +139,15 @@ def fmt_clock(unix_utc):
     return f"{h12}:{minute:02d}{suffix}"
 
 
+def fmt_date(unix_utc):
+    """Format UTC unix timestamp into Eastern date string: 'TUE 10/13'."""
+    local = unix_utc + eastern_offset(unix_utc)
+    days = local // 86400
+    w = weekday(local)
+    _, m, d = civil_from_days(days)
+    return f"{WEEKDAY_NAMES[w]} {m}/{d}"
+
+
 def set_time(unix_secs, mono_now=None):
     """Directly set base time (used by tests or sync)."""
     global _base_unix, _base_mono, _last_sync_mono
