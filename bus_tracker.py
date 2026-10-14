@@ -58,6 +58,9 @@ from bus_logic import (
 # Debug logging toggle: gates raw JSON debug prints
 DEBUG = False
 
+# Simulation mode: set True or BUS_SIMULATE=true in settings.toml to test leave-now cue
+SIMULATE_LEAVE_NOW = False
+
 # Default stop and walk settings from settings.toml or defaults
 DEFAULT_STOP_ID = os.getenv("NJT_STOP_ID", "21061")
 DEFAULT_STOP_LABEL = os.getenv("NJT_STOP_LABEL", "PLSD+BWRS")
@@ -215,6 +218,14 @@ def get_njt_token():
 
 def fetch_departures(stop_id):
     """Fetch departure predictions for a specific stop ID."""
+    if SIMULATE_LEAVE_NOW or os.getenv("BUS_SIMULATE", "").lower() in ("1", "true"):
+        return [
+            {"public_route": "87", "departurestatus": "in 2 mins"},
+            {"public_route": "86", "departurestatus": "in 4 mins"},
+            {"public_route": "84", "departurestatus": "in 12 mins"},
+            {"public_route": "82", "departurestatus": "in 25 mins"},
+        ]
+
     token = get_njt_token()
     if not token:
         if DEBUG:
