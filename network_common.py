@@ -55,3 +55,29 @@ def connect_wifi_and_get_session():
         print("Initial NTP sync error:", e)
 
     return _cached_session
+
+
+_njt_token = None
+_njt_token_expiry = 0
+
+
+def get_cached_njt_token():
+    """Retrieve active cached NJT token if not expired."""
+    global _njt_token, _njt_token_expiry
+    if _njt_token and time.monotonic() < _njt_token_expiry:
+        return _njt_token
+    return None
+
+
+def set_cached_njt_token(token, expiry):
+    """Cache NJT token with expiry timestamp."""
+    global _njt_token, _njt_token_expiry
+    _njt_token = token
+    _njt_token_expiry = expiry
+
+
+def clear_cached_njt_token():
+    """Clear cached NJT token."""
+    global _njt_token, _njt_token_expiry
+    _njt_token = None
+    _njt_token_expiry = 0

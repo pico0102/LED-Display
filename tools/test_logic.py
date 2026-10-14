@@ -30,6 +30,11 @@ try:
 except ImportError:
     sleeper_logic = None
 
+try:
+    import bus_logic
+except ImportError:
+    bus_logic = None
+
 
 class TestPureModulesImport(unittest.TestCase):
     def test_framework_ready(self):
@@ -384,6 +389,67 @@ class TestSleeperLogic(unittest.TestCase):
         # Empty/None starters
         self.assertIsNone(sleeper_logic.calc_ytp(None, [], 6, {}))
         self.assertIsNone(sleeper_logic.calc_ytp([], [], 6, {}))
+
+
+@unittest.skipIf(bus_logic is None, "bus_logic not implemented yet (Phase 6)")
+class TestBusLogic(unittest.TestCase):
+    def test_classify_status(self):
+        """Test parsing of various departurestatus formats."""
+        self.assertEqual(bus_logic.classify_status("in 18 mins"), (18, "18m"))
+        self.assertEqual(bus_logic.classify_status("in 3 Min"), (3, "3m"))
+        self.assertEqual(bus_logic.classify_status("All Aboard"), (-1, "DUE"))
+        self.assertEqual(bus_logic.classify_status("Due"), (-1, "DUE"))
+        self.assertEqual(bus_logic.classify_status("09:43 PM"), (9999, "09:43P"))
+        self.assertEqual(bus_logic.classify_status(""), (9999, "?"))
+        self.assertEqual(bus_logic.classify_status(None), (9999, "?"))
+
+    def test_time_color_for(self):
+        """Test color thresholds (<3 red, <5 yellow, >=5 green)."""
+        self.assertEqual(bus_logic.time_color_for(-1), bus_logic.COLOR_RED)
+        self.assertEqual(bus_logic.time_color_for(2), bus_logic.COLOR_RED)
+        self.assertEqual(bus_logic.time_color_for(3), bus_logic.COLOR_YELLOW)
+        self.assertEqual(bus_logic.time_color_for(4), bus_logic.COLOR_YELLOW)
+        self.assertEqual(bus_logic.time_color_for(5), bus_logic.COLOR_GREEN)
+        self.assertEqual(bus_logic.time_color_for(9999), bus_logic.COLOR_GREEN)
+
+    def test_is_catchable(self):
+        """Test catchability given walk minutes."""
+        # walk_min = 4
+        self.assertFalse(bus_logic.is_catchable(-1, 4))
+        self.assertFalse(bus_logic.is_catchable(2, 4))
+        self.assertFalse(bus_logic.is_catchable(3, 4))
+        self.assertTrue(bus_logic.is_catchable(4, 4))
+        self.assertTrue(bus_logic.is_catchable(10, 4))
+        self.assertTrue(bus_logic.is_catchable(9999, 4))
+
+        # walk_min = 0 (at the stop)
+        self.assertTrue(bus_logic.is_catchable(-1, 0))
+        self.assertTrue(bus_logic.is_catchable(0, 0))
+
+    def test_should_leave_now(self):
+        """Test leave-now trigger range (walk_min .. walk_min + 1)."""
+        # walk_min = 4
+        self.assertFalse(bus_logic.should_leave_now(2, 4))
+        self.assertFalse(bus_logic.should_leave_now(3, 4))
+        self.assertTrue(bus_logic.should_leave_now(4, 4))
+        self.assertTrue(bus_logic.should_leave_now(5, 4))
+        self.assertFalse(bus_logic.should_leave_now(6, 4))
+        self.assertFalse(bus_logic.should_leave_now(9999, 4))
+        self.assertFalse(bus_logic.should_leave_now(-1, 4))
+
+    def test_select_display_trips(self):
+        """Test selection of next catchable bus and ticker buses."""
+        trips = [
+            {"public_route": "87", "departurestatus": "in 2 mins"},
+            {"public_route": "86", "departurestatus": "in 5 mins"},
+            {"public_route": "84", "departurestatus": "in 12 mins"},
+        ]
+        next_t, ticker, leave_now = bus_logic.select_display_trips(trips, walk_min=4)
+        # Next catchable bus should be 86 (5 mins)
+        self.assertEqual(next_t.get("public_route"), "86")
+        self.assertTrue(leave_now)  # 5 mins is within 4..5
+        # Ticker should contain 87 (2 mins) and 84 (12 mins)
+        self.assertEqual([t.get("public_route") for t in ticker], ["87", "84"])
 
 
 if __name__ == "__main__":
