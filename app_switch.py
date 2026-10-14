@@ -11,9 +11,10 @@
 # WHERE TO CONFIGURE THINGS
 # ============================================================
 #   Active programs in rotation ........ PROGRAMS list below
-#   Auto-rotate timeout (0 to disable) . AUTO_ROTATE_SECONDS (default 0)
+#   Auto-rotate timeout (0 to disable) . AUTO_ROTATE_SECONDS (default 0, set in settings.toml)
 # ============================================================
 
+import os
 import board
 import keypad
 import time
@@ -24,8 +25,10 @@ PROGRAMS = ("flight_wall.py", "bus_tracker.py", "sports_tracker.py", "sleeper_ma
 STATE_FILE = "/program_state.txt"
 
 # Auto-rotate timer: seconds before auto-cycling to next app. 0 = disabled.
-# When enabled, button press resets the timer. Apps can set hold_rotation = True.
-AUTO_ROTATE_SECONDS = 0
+# When enabled, button press resets the timer. Apps can set hold_rotation = True
+# (e.g., sports_tracker holds rotation while any game is live).
+# Note: Flight tracker (flight_wall.py) is unaware of auto-rotation and runs untouched.
+AUTO_ROTATE_SECONDS = int(os.getenv("AUTO_ROTATE_SECONDS", "0"))
 hold_rotation = False
 
 # Background keypad scanner initialized once at module level.
@@ -87,18 +90,21 @@ def make_switch_button(current_program=None, pin=None):
     start_time = time.monotonic()
 
     def check():
+        nonlocal start_time
         # 1. Background hooks (brightness schedule, time sync)
         display_common.tick()
 
         # 2. Drain keys queue; act on first pressed event
         while _keys.events.get_into(_event):
             if _event.pressed:
+                start_time = time.monotonic()
                 direction = 1 if _event.key_number == 0 else -1
                 raise SwitchRequested(direction)
 
         # 3. Optional auto-rotation (Phase 8)
         if AUTO_ROTATE_SECONDS > 0 and not hold_rotation:
             if time.monotonic() - start_time >= AUTO_ROTATE_SECONDS:
+                start_time = time.monotonic()
                 raise SwitchRequested(1)
 
     return check
