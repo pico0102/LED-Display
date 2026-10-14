@@ -23,21 +23,22 @@ import voice_control
 
 # Programs active in rotation. Add each file only when its implementation exists.
 PROGRAMS = (
-    "flight_wall.py",      # Index 0
+    "idle_clock.py",       # Index 0
     "bus_tracker.py",      # Index 1
     "sports_tracker.py",   # Index 2
     "sleeper_matchup.py",  # Index 3
-    "idle_clock.py",       # Index 4
+    "flight_wall.py",      # Index 4
 )
 
 # Program labels for the 3-row voice confirmation splash screen (strictly <= 10 chars)
 PROGRAM_LABELS = (
-    "-> FLIGHTS",  # Index 0 (10 chars)
+    "-> CLOCK",    # Index 0 (8 chars)
     "-> BUS",      # Index 1 (6 chars)
     "-> SPORTS",   # Index 2 (9 chars)
     "-> FANTASY",  # Index 3 (10 chars)
-    "-> CLOCK",    # Index 4 (8 chars)
+    "-> FLIGHTS",  # Index 4 (10 chars)
 )
+
 
 STATE_FILE = "/program_state.txt"
 

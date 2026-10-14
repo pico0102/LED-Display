@@ -7,12 +7,13 @@ import struct
 
 # Canonical mapping of program indices (0..4) to voice alias keywords
 TARGET_ALIASES = {
-    0: ("flight", "flights", "plane", "planes", "sky", "aircraft", "0"),
+    0: ("clock", "time", "weather", "idle", "home", "0"),
     1: ("bus", "buses", "transit", "njt", "commute", "1"),
     2: ("sport", "sports", "score", "scores", "game", "games", "devils", "cowboys", "yankees", "nhl", "nfl", "mlb", "2"),
     3: ("fantasy", "sleeper", "matchup", "football", "3"),
-    4: ("clock", "time", "weather", "idle", "home", "4"),
+    4: ("flight", "flights", "plane", "planes", "sky", "aircraft", "4"),
 }
+
 
 STEP_NEXT_ALIASES = ("next", "up", "forward", "cycle")
 STEP_PREV_ALIASES = ("prev", "previous", "down", "back")

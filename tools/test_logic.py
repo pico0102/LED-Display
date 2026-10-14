@@ -499,11 +499,11 @@ class TestVoiceLogic(unittest.TestCase):
     def test_screen_target_keywords(self):
         """Test keyword recognition for each of the 5 canonical screens."""
         targets = [
-            (0, ["flights", "plane", "sky", "aircraft", "0"]),
+            (0, ["clock", "time", "weather", "idle", "home", "0"]),
             (1, ["bus", "buses", "transit", "njt", "commute", "1"]),
             (2, ["sports", "score", "game", "devils", "cowboys", "yankees", "nhl", "nfl", "mlb", "2"]),
             (3, ["fantasy", "sleeper", "matchup", "football", "3"]),
-            (4, ["clock", "time", "weather", "idle", "home", "4"]),
+            (4, ["flights", "plane", "sky", "aircraft", "4"]),
         ]
         for expected_idx, words in targets:
             for w in words:
@@ -517,9 +517,9 @@ class TestVoiceLogic(unittest.TestCase):
         cases = [
             ("please show the devils game", 2),
             ("switch to bus tracker!", 1),
-            ("Can you check flights?", 0),
+            ("Can you check flights?", 4),
             ("show my sleeper matchup.", 3),
-            ("what is the time and weather?", 4),
+            ("what is the time and weather?", 0),
         ]
         for phrase, expected_idx in cases:
             res = voice_logic.resolve_action(phrase)
@@ -572,17 +572,18 @@ class TestVoiceLogic(unittest.TestCase):
         self.assertEqual(res_json["target_index"], 3)
 
         # Adafruit IO JSON
-        res_aio = voice_logic.parse_command('{"value": "clock"}')
+        res_aio = voice_logic.parse_command('{"value": "flights"}')
         self.assertEqual(res_aio["target_index"], 4)
 
         # CMD format
-        res_cmd = voice_logic.parse_command("CMD:flights:tok123", expected_token="tok123")
+        res_cmd = voice_logic.parse_command("CMD:clock:tok123", expected_token="tok123")
         self.assertEqual(res_cmd["target_index"], 0)
-        self.assertIsNone(voice_logic.parse_command("CMD:flights:tok123", expected_token="tok999"))
+        self.assertIsNone(voice_logic.parse_command("CMD:clock:tok123", expected_token="tok999"))
 
         # Raw text
         res_raw = voice_logic.parse_command("sports")
         self.assertEqual(res_raw["target_index"], 2)
+
 
     def test_mqtt_packets(self):
         """Test MQTT packet generation and publish parsing."""
